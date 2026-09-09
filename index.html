@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI IT Helpdesk Agent</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033}
+.container{max-width:1000px;margin:30px auto;padding:20px}
+header{background:#172554;color:white;padding:25px;border-radius:18px;margin-bottom:20px}
+header h1{margin:0 0 8px}
+.grid{display:grid;grid-template-columns:1fr 320px;gap:20px}
+.card{background:white;border-radius:16px;padding:20px;box-shadow:0 5px 20px #00000012}
+#chat{height:500px;overflow-y:auto;padding:10px;background:#f8fafc;border-radius:12px}
+.msg{padding:12px 15px;margin:10px 0;border-radius:14px;max-width:85%;white-space:pre-line}
+.user{background:#dbeafe;margin-left:auto}
+.bot{background:#e2e8f0;margin-right:auto}
+.inputrow{display:flex;gap:10px;margin-top:12px}
+input,textarea,select{width:100%;padding:11px;border:1px solid #cbd5e1;border-radius:9px;font:inherit}
+textarea{resize:vertical}
+button{border:0;border-radius:9px;padding:11px 16px;background:#2563eb;color:white;font-weight:bold;cursor:pointer}
+button:hover{opacity:.9}
+.secondary{background:#475569}
+.ticket{border-left:4px solid #2563eb;background:#f8fafc;padding:10px;margin-top:10px;border-radius:7px}
+.small{font-size:13px;color:#64748b}
+@media(max-width:800px){.grid{grid-template-columns:1fr}#chat{height:420px}}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+<h1>🛠️ AI IT Helpdesk Agent</h1>
+<div>Intelligent IT troubleshooting and support ticket management</div>
+</header>
+
+<div class="grid">
+<section class="card">
+<h2>💬 Helpdesk Chat</h2>
+<div id="chat"></div>
+<div class="inputrow">
+<input id="message" placeholder="Describe your IT problem..." autocomplete="off">
+<button onclick="sendMessage()">Send</button>
+</div>
+<p class="small">Try: “My Wi-Fi is not connecting” or “My printer is not printing”.</p>
+</section>
+
+<aside class="card">
+<h2>🎫 Create Ticket</h2>
+<input id="name" placeholder="Your name">
+<br><br>
+<textarea id="issue" rows="5" placeholder="Describe the issue"></textarea>
+<br><br>
+<select id="priority">
+<option>Low</option><option selected>Medium</option><option>High</option>
+</select>
+<br><br>
+<button onclick="createTicket()">Create Ticket</button>
+<div id="ticketMessage"></div>
+
+<hr>
+<h3>Recent Tickets</h3>
+<div id="tickets"><p class="small">No tickets created yet.</p></div>
+</aside>
+</div>
+</div>
+
+<script>
+const KB = {
+wifi:{
+keywords:["wifi","wi-fi","internet","network","connection","offline"],
+answer:`Let's troubleshoot your network connection:
+
+1. Check that Wi-Fi is turned on.
+2. Disconnect and reconnect to the network.
+3. Restart your router/access point if you have access to it.
+4. Restart your computer.
+5. If other websites still do not load, check whether other devices have the same problem.
+
+If the issue continues, create an IT support ticket.`
+},
+password:{
+keywords:["password","forgot password","login","sign in","account","locked"],
+answer:`For a password or account problem:
+
+1. Make sure Caps Lock is not causing a typing issue.
+2. Use your organization's official password-reset process.
+3. Never share your password or verification codes.
+4. If your account is locked, contact your IT administrator.
+
+I can help you create a support ticket.`
+},
+printer:{
+keywords:["printer","printing","print","paper","scanner"],
+answer:`Try these printer checks:
+
+1. Make sure the printer is powered on.
+2. Check paper and ink/toner status.
+3. Confirm that the correct printer is selected.
+4. Cancel stuck print jobs and try again.
+5. Restart the printer and your computer if necessary.
+
+If printing still fails, create an IT ticket.`
+},
+email:{
+keywords:["email","mail","outlook","gmail","attachment","inbox"],
+answer:`For an email problem:
+
+1. Check your internet connection.
+2. Refresh or restart the mail application.
+3. Check mailbox storage if messages cannot be sent or received.
+4. Verify the recipient address and attachment size.
+5. Do not open suspicious links or attachments; report suspected phishing using your organization's process.`
+},
+slow:{
+keywords:["slow","lag","hang","freezing","freeze","performance"],
+answer:`For a slow or freezing computer:
+
+1. Save your work and close unnecessary applications.
+2. Restart the computer.
+3. Close unnecessary browser tabs and programs.
+4. Make sure the operating system and approved applications are updated.
+5. Contact IT support if the problem continues.`
+},
+software:{
+keywords:["software","application","app","install","installation","update"],
+answer:`For software problems:
+
+1. Restart the application.
+2. Restart the computer if necessary.
+3. Check whether an approved update is available.
+4. Use only software approved by your organization or college.
+5. If administrator access is required, contact IT support rather than bypassing security controls.`
+},
+hardware:{
+keywords:["keyboard","mouse","touchpad","monitor","screen","hardware"],
+answer:`For a hardware problem:
+
+1. Check the physical connection or Bluetooth status.
+2. Reconnect the device.
+3. Restart the computer.
+4. If possible, test with another approved device.
+5. Contact IT support if the hardware appears damaged.`
+}
+};
+
+function normalize(text){
+return text.toLowerCase().replace(/[^a-z0-9\\s-]/g," ");
+}
+
+function getResponse(message){
+const text=normalize(message);
+let best=null,bestScore=0;
+for(const [topic,data] of Object.entries(KB)){
+let score=0;
+data.keywords.forEach(k=>{
+if(text.includes(k)) score += k.includes(" ") ? 2 : 1;
+});
+if(score>bestScore){bestScore=score;best=topic;}
+}
+if(best) return KB[best].answer;
+return "I couldn't confidently identify the IT issue. Please describe it with a little more detail, for example: “My Wi-Fi is not connecting” or “My printer is not printing”. You can also create a support ticket.";
+}
+
+function addMessage(text,type){
+const div=document.createElement("div");
+div.className="msg "+type;
+div.textContent=text;
+const chat=document.getElementById("chat");
+chat.appendChild(div);
+chat.scrollTop=chat.scrollHeight;
+}
+
+function sendMessage(){
+const input=document.getElementById("message");
+const text=input.value.trim();
+if(!text)return;
+addMessage(text,"user");
+setTimeout(()=>addMessage(getResponse(text),"bot"),250);
+input.value="";
+input.focus();
+}
+
+document.getElementById("message").addEventListener("keydown",e=>{
+if(e.key==="Enter")sendMessage();
+});
+
+let tickets=JSON.parse(localStorage.getItem("itTickets")||"[]");
+
+function createTicket(){
+const name=document.getElementById("name").value.trim();
+const issue=document.getElementById("issue").value.trim();
+const priority=document.getElementById("priority").value;
+const output=document.getElementById("ticketMessage");
+if(!name||!issue){
+output.innerHTML='<p class="small">Please enter your name and describe the issue.</p>';
+return;
+}
+const id="IT-"+Math.random().toString(36).substring(2,8).toUpperCase();
+const ticket={
+id,name,issue,priority,status:"Open",
+created:new Date().toLocaleString()
+};
+tickets.push(ticket);
+localStorage.setItem("itTickets",JSON.stringify(tickets));
+output.innerHTML="<p><b>Ticket "+id+" created successfully.</b></p>";
+document.getElementById("name").value="";
+document.getElementById("issue").value="";
+renderTickets();
+}
+
+function renderTickets(){
+const box=document.getElementById("tickets");
+if(!tickets.length){
+box.innerHTML='<p class="small">No tickets created yet.</p>';
+return;
+}
+box.innerHTML="";
+tickets.slice().reverse().slice(0,5).forEach(t=>{
+const div=document.createElement("div");
+div.className="ticket";
+div.innerHTML=`<b>${t.id}</b> • ${t.priority} • ${t.status}<br><span class="small">${t.created}</span>`;
+box.appendChild(div);
+});
+}
+
+addMessage("Hello! I am your IT Helpdesk Agent. Describe a common IT issue and I will suggest troubleshooting steps.","bot");
+renderTickets();
+</script>
+</body>
+</html>
